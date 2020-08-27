@@ -12,12 +12,21 @@ configure_file(output : 'config.h', configuration : cdata)
 gstaudio_dep = dependency('gstreamer-audio-1.0',
     fallback: ['gst-plugins-base', 'audio_dep'])
 
+cc = meson.get_compiler('c')
+rnnoise_dep = cc.find_library('rnnoise.0',
+                dirs : ['/Users/cartier/Devel/gstreamer/rnnoise/rnnoise/lib'])
+
+rnnoise_inc = include_directories('../rnnoise/include')
+
 rnnoise_sources = [
     'src/gstrnnoise.c',
+    'src/rndenoise.c',
+    'src/rndenoiser.c'
 ]
 
 library('gstrnnoise',
     rnnoise_sources,
     c_args: plugin_c_args,
-    dependencies : [gst_dep, gstaudio_dep]
+    dependencies : [gst_dep, gstaudio_dep, rnnoise_dep],
+    include_directories : rnnoise_inc
 )
