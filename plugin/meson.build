@@ -13,8 +13,9 @@ gstaudio_dep = dependency('gstreamer-audio-1.0',
     fallback: ['gst-plugins-base', 'audio_dep'])
 
 cc = meson.get_compiler('c')
-rnnoise_dep = cc.find_library('rnnoise.0',
-                dirs : ['/Users/cartier/Devel/gstreamer/rnnoise/rnnoise/lib'])
+# if (host_machine.system() == 'darwin')
+    rnnoise_dep = cc.find_library('rnnoise.0',
+                    dirs : [meson.current_source_dir() + '/../rnnoise/lib'])
 
 rnnoise_inc = include_directories('../rnnoise/include')
 

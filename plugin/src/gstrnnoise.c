@@ -9,9 +9,9 @@
 static gboolean
 plugin_init(GstPlugin * plugin)
 {
-    if (!gst_element_register(plugin, "rndenoise", GST_RANK_NONE, gst_rndenoise_get_type()))
-        return FALSE;
-    
+    // if (!gst_element_register(plugin, "rndenoise", GST_RANK_NONE, gst_rndenoise_get_type()))
+    //     return FALSE;
+    // 
     if (!gst_element_register(plugin, "rndenoiser", GST_RANK_NONE, gst_rndenoiser_get_type()))
         return FALSE;
     
