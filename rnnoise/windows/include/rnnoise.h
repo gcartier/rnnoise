@@ -38,15 +38,21 @@
 # endif
 #endif
 
+#ifdef _WIN32
+  #define SHARED_PUBLIC __declspec(dllimport)
+#else
+  #define SHARED_PUBLIC __attribute__ ((visibility ("default")))
+#endif
+
 
 typedef struct DenoiseState DenoiseState;
 
-RNNOISE_EXPORT int rnnoise_get_size();
+SHARED_PUBLIC int rnnoise_get_size();
 
-RNNOISE_EXPORT int rnnoise_init(DenoiseState *st);
+SHARED_PUBLIC int rnnoise_init(DenoiseState *st);
 
-RNNOISE_EXPORT DenoiseState *rnnoise_create();
+SHARED_PUBLIC DenoiseState *rnnoise_create();
 
-RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
+SHARED_PUBLIC void rnnoise_destroy(DenoiseState *st);
 
-RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
+SHARED_PUBLIC float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
