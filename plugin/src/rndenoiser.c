@@ -251,8 +251,13 @@ gst_rndenoiser_init(GstRNDenoiser * denoiser)
     gst_element_add_pad(GST_ELEMENT(denoiser), denoiser->srcpad);
 
     denoiser->denoise = TRUE;
-  
+
+// extra parameter was added in a later commit
+#ifdef _WIN32
+    denoiser->st = rnnoise_create(NULL);
+#else
     denoiser->st = rnnoise_create();
+#endif
 }
 
 

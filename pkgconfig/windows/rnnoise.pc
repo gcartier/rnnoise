@@ -1,0 +1,12 @@
+rnnoisedir=/c/Home/gstreamer/rnnoise/rnnoise/windows
+includedir=${rnnoisedir}/include
+libdir=${rnnoisedir}/lib
+
+lib=-L${libdir} -lrnnoise
+include=-I{includedir}
+
+Name: rnnoise
+Description: RNNoise library
+Version: 0.1
+Libs: ${lib}
+Cflags: ${include}
