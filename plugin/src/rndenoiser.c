@@ -18,6 +18,8 @@ struct _GstRNDenoiser
     GstPad *srcpad;
     GstAudioInfo info;
     gboolean denoise;
+    gboolean voice;
+    gboolean has_voice;
     DenoiseState* st;
 };
 
@@ -31,7 +33,8 @@ static GstElementClass *parent_class = NULL;
 enum
 {
     PROP_0,
-    PROP_DENOISE
+    PROP_DENOISE,
+    PROP_VOICE
 };
 
 
@@ -68,6 +71,9 @@ gst_rndenoiser_set_property(GObject * object, guint prop_id,
          case PROP_DENOISE:
             denoiser->denoise = g_value_get_boolean(value);
             break;
+         case PROP_VOICE:
+            denoiser->voice = g_value_get_boolean(value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
             break;
@@ -86,6 +92,9 @@ gst_rndenoiser_get_property(GObject * object, guint prop_id,
     switch (prop_id) {
         case PROP_DENOISE:
             g_value_set_boolean(value, denoiser->denoise);
+            break;
+        case PROP_VOICE:
+            g_value_set_boolean(value, denoiser->voice);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -170,10 +179,10 @@ gst_rndenoiser_chain(GstPad * pad, GstObject * parent, GstBuffer * buf)
     
     rndenoiser = GST_RNDENOISER(parent);
     
-    if (! rndenoiser->denoise) {
+    if (! rndenoiser->denoise && ! rndenoiser->voice)
         return gst_pad_push(rndenoiser->srcpad, buf);
-    }
-    else {
+    else
+    {
         GstMapInfo map;
         gst_buffer_map(buf, &map, GST_MAP_READ);
         
@@ -199,27 +208,54 @@ gst_rndenoiser_chain(GstPad * pad, GstObject * parent, GstBuffer * buf)
             else
             {
                 int i;
+                float vad_prob;
             
                 for (i=0; i<avail; i++)
                     *denoising_ptr++ = *ptr++;
                 
-                rnnoise_process_frame(rndenoiser->st, denoising, denoising);
+                vad_prob = rnnoise_process_frame(rndenoiser->st, denoising, denoising);
+                if (rndenoiser->voice)
+                {
+                    if (vad_prob >= .5)
+                    {
+                        if (! rndenoiser->has_voice)
+                        {
+                            rndenoiser->has_voice = TRUE;
+                            gst_pad_push_event(rndenoiser->srcpad,
+                                gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM,
+                                    gst_structure_new_empty("voice")));
+                        }
+                    }
+                    else
+                    {
+                        if (rndenoiser->has_voice)
+                        {
+                            rndenoiser->has_voice = FALSE;
+                            gst_pad_push_event(rndenoiser->srcpad,
+                                gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM,
+                                    gst_structure_new_empty("silence")));
+                        }
+                    }
+                }
                 
-                GstBuffer *denoised_buffer = gst_buffer_new_allocate(NULL, FRAME_SIZE * sizeof(short), NULL);
-                GstMapInfo denoised_map;
-                gst_buffer_map(denoised_buffer, &denoised_map, GST_MAP_WRITE);
-                short* denoised_ptr = (short*) denoised_map.data;
-                
-                for (i=0; i<FRAME_SIZE; i++)
-                    denoised_ptr[i] = denoising[i];
-                
-                GST_BUFFER_DTS(denoised_buffer) = GST_BUFFER_DTS(buf);
-                GST_BUFFER_PTS(denoised_buffer) = GST_BUFFER_PTS(buf);
-                GST_BUFFER_DURATION(denoised_buffer) = GST_BUFFER_DURATION(buf);
-                
-                gst_buffer_unmap(denoised_buffer, &denoised_map);
-                
-                gst_pad_push(rndenoiser->srcpad, denoised_buffer);
+                if (rndenoiser->denoise)
+                {
+                    GstBuffer *denoised_buffer = gst_buffer_new_allocate(NULL, FRAME_SIZE * sizeof(short), NULL);
+                    GstMapInfo denoised_map;
+                    gst_buffer_map(denoised_buffer, &denoised_map, GST_MAP_WRITE);
+                    short* denoised_ptr = (short*) denoised_map.data;
+                    
+                    for (i=0; i<FRAME_SIZE; i++)
+                        denoised_ptr[i] = denoising[i];
+                    
+                    GST_BUFFER_DTS(denoised_buffer) = GST_BUFFER_DTS(buf);
+                    GST_BUFFER_PTS(denoised_buffer) = GST_BUFFER_PTS(buf);
+                    GST_BUFFER_DURATION(denoised_buffer) = GST_BUFFER_DURATION(buf);
+                    
+                    gst_buffer_unmap(denoised_buffer, &denoised_map);
+                    
+                    gst_pad_push(rndenoiser->srcpad, denoised_buffer);
+                }
                 
                 denoising_ptr = denoising;
                 filled = 0;
@@ -229,9 +265,14 @@ gst_rndenoiser_chain(GstPad * pad, GstObject * parent, GstBuffer * buf)
         
         gst_buffer_unmap(buf, &map);
         
-        gst_buffer_unref(buf);
+        if (rndenoiser->denoise)
+        {
+            gst_buffer_unref(buf);
     
-        return GST_FLOW_OK;
+            return GST_FLOW_OK;
+        }
+        else
+            return gst_pad_push(rndenoiser->srcpad, buf);
     }
 }
 
@@ -251,8 +292,10 @@ gst_rndenoiser_init(GstRNDenoiser * denoiser)
     gst_element_add_pad(GST_ELEMENT(denoiser), denoiser->srcpad);
 
     denoiser->denoise = TRUE;
-
-// extra parameter was added in a later commit
+    denoiser->voice = FALSE;
+    
+    denoiser->has_voice = FALSE;
+  
 #ifdef _WIN32
     denoiser->st = rnnoise_create(NULL);
 #else
@@ -297,6 +340,11 @@ gst_rndenoiser_class_init(GstRNDenoiserClass * klass)
     g_object_class_install_property(gobject_class, PROP_DENOISE,
         g_param_spec_boolean ("denoise", "Denoise", "Enable denoising",
             TRUE,
+            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_CONTROLLABLE));
+
+    g_object_class_install_property(gobject_class, PROP_VOICE,
+        g_param_spec_boolean ("voice", "Voice detection", "Enable voice activity detection",
+            FALSE,
             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_CONTROLLABLE));
 
     gst_element_class_add_static_pad_template(element_class,
