@@ -19,8 +19,9 @@ if (host_machine.system() == 'darwin')
     rnnoise_dep = cc.find_library('rnnoise.0',
                     dirs : [meson.current_source_dir() + '/../rnnoise/mac/lib'])
 elif (host_machine.system() == 'windows')
-	rnnoise_dep = dependency('rnnoise')
-	rnnoise_inc = include_directories('../rnnoise/windows/include')
+	  rnnoise_inc = include_directories('../rnnoise/windows/include')
+    rnnoise_dep = cc.find_library('rnnoise',
+                    dirs : [meson.current_source_dir() + '/../rnnoise/windows/lib'])
 endif
 
 rnnoise_sources = [
