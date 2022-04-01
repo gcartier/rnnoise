@@ -246,7 +246,7 @@ gst_rndenoiser_chain(GstPad * pad, GstObject * parent, GstBuffer * buf)
                     short* denoised_ptr = (short*) denoised_map.data;
                     
                     for (i=0; i<FRAME_SIZE; i++)
-                        denoised_ptr[i] = denoising[i];
+                        denoised_ptr[i] = (short) denoising[i];
                     
                     GST_BUFFER_DTS(denoised_buffer) = GST_BUFFER_DTS(buf);
                     GST_BUFFER_PTS(denoised_buffer) = GST_BUFFER_PTS(buf);
