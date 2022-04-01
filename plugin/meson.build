@@ -25,7 +25,6 @@ endif
 
 rnnoise_sources = [
     'src/gstrnnoise.c',
-    'src/rndenoise.c',
     'src/rndenoiser.c'
 ]
 
