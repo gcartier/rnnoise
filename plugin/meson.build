@@ -15,9 +15,15 @@ gstaudio_dep = dependency('gstreamer-audio-1.0',
 cc = meson.get_compiler('c')
 
 if (host_machine.system() == 'darwin')
-    rnnoise_inc = include_directories('../rnnoise/mac/include')
-    rnnoise_dep = cc.find_library('rnnoise.0',
-                    dirs : [meson.current_source_dir() + '/../rnnoise/mac/lib'])
+    if (host_machine.cpu_family() == 'aarch64')
+        rnnoise_inc = include_directories('../rnnoise/silicon/include')
+        rnnoise_dep = cc.find_library('rnnoise.0',
+                        dirs : [meson.current_source_dir() + '/../rnnoise/silicon/lib'])
+    else
+        rnnoise_inc = include_directories('../rnnoise/mac/include')
+        rnnoise_dep = cc.find_library('rnnoise.0',
+                        dirs : [meson.current_source_dir() + '/../rnnoise/mac/lib'])
+    endif
 elif (host_machine.system() == 'windows')
 	  rnnoise_inc = include_directories('../rnnoise/windows/include')
     rnnoise_dep = cc.find_library('rnnoise',
